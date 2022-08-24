@@ -221,6 +221,7 @@ struct DimensionData {
     end_data: DragonFight
 }
 
+
 struct Data {
     custom_boss_events: Vec<BossEvent>,
     world: WorldData,
