@@ -1,24 +1,31 @@
 use std::collections::HashMap;
 use std::io;
+use crate::proxy::{Level, TagProxy};
 use crate::nbt_stream::{Consumable, NBTRead};
+use crate::tag::Tag;
 
 mod nbt_stream;
 mod tag;
 mod proxy;
-mod level;
 
+fn main_tag() -> Tag {
+    Tag::from_stream(&mut NBTRead::new("level.dat").unwrap()).unwrap()
+}
+fn real_main() -> Option<()> {
+    let mut level = Level::from_tag(main_tag());
+    *level.data()?.server_brands()? = vec![Tag::String("Dog".to_string())];
+    println!("{:?}", level.as_tag());
+    Some(())
+}
 
 #[cfg(test)]
 mod tests {
     use std::io;
-    use crate::NBTRead;
+    use crate::{NBTRead, real_main, tag};
     use crate::tag::Tag;
 
     #[test]
-    pub fn main() -> io::Result<()> {
-        // let mut stream = NBTRead::new("level.dat")?;
-        // let x = Tag::from_stream(&mut stream)?;
-        // println!("{x:?}");
-        Ok(())
+    pub fn main() {
+        let _ = real_main();
     }
 }

@@ -1,78 +1,74 @@
-use std::alloc::alloc;
-use std::collections::HashMap;
-use std::hash::Hash;
-use std::marker::PhantomData;
-// TODO a nice proc macro that does all this magic LMAO
 use crate::tag::Tag;
-//  https://minecraft.fandom.com/wiki/Java_Edition_level_format#level.dat_format
-use serde::{Serialize, Deserialize, Serializer, Deserializer};
-use paste::paste;
+use std::collections::HashMap;
+use proc_macro::TokenStream;
+use quote::quote;
 
-
-#[derive(Debug)]
-struct Data {
-    // #[from(Tag::Byte)]
-    // #[name(allowCommands)]
-    allow_commands: bool,
-    // #[from(Tag::Double)]
-    // #[name(BorderCenterX)]
-    border_center_x: f64,
-    border_center_z: f64
+pub trait TagProxy<'a> {
+    fn from_tag(tag: &'a mut Tag) -> Self;
+    fn as_tag(&mut self) -> &mut Tag;
 }
 
-impl Data {
-    fn new(x: &HashMap<String, Tag>) -> Option<Self> {
-        Some(Self {
-            allow_commands: {match x.get("allowCommands")? {
-                Tag::Byte(x) => Some(*x != 0u8),
-                _ => None
-            }?},
-            border_center_x: {match x.get("BorderCenterX")? {
-                Tag::Double(x) => Some(*x),
-                _ => None
-            }?},
-            border_center_z: {match x.get("BorderCenterX")? {
-                Tag::Double(x) => Some(*x),
-                _ => None
-            }?}
-        })
-    }
-}
-
-struct Level {
-    data: Data
-}
+// #[proc_macro_derive(TagProxy)]
+// pub fn derive_proxy(item: TokenStream) -> TokenStream {
+//     quote!()
+// }
 
 
-macro_rules! require {
-    ($map: expr, $tag: expr) => {
-        {
-            use paste::paste;
-
+macro_rules! impl_proxy {
+    ($i: ident) => {
+        impl<'a> TagProxy<'a> for $i <'a> {
+            fn from_tag(tag: &'a mut Tag) -> Self {
+                Self {
+                    tag
+                }
+            }
+            fn as_tag(&mut self) -> &mut Tag {
+                &mut self.tag
+            }
         }
     };
 }
+pub struct Level {
+    tag: Tag
+}
 
-#[cfg(test)]
-mod tests {
-    use std::io;
-    use crate::NBTRead;
-    use crate::proxy::Data;
-    use crate::tag::Tag;
 
-    #[test]
-    fn main() -> io::Result<()> {
-        let mut reader = NBTRead::new("level.dat")?;
-        let x = Tag::from_stream(&mut reader)?;
-        let y = {
-            match x {
-                Tag::Compound(x) => x,
-                _ => unreachable!()
-            }
-        };
+impl Level {
+    pub fn from_tag(tag: Tag) -> Self {
+        Self {
+            tag
+        }
+    }
 
-        println!("{:?}", y);
+    pub fn as_tag(&mut self) -> &mut Tag {
+        &mut self.tag
+    }
 
-        Ok(())
+    pub fn data(&mut self) -> Option<Data> {
+        Some(Data::from_tag(self.as_tag().compound()?.get_mut("Data")?))
     }
 }
+
+pub struct Data<'a> {
+    tag: &'a mut Tag
+}
+
+
+impl_proxy!(Data);
+
+impl<'a> Data<'a> {
+    pub fn allow_commands(&mut self) -> Option<&mut u8> {
+        Some(self.tag.compound()?.get_mut("allowCommands")?.byte()?)
+    }
+
+    pub fn raining(&mut self) -> Option<&mut u8> {
+        Some(self.tag.compound()?.get_mut("raining")?.byte()?)
+    }
+
+    pub fn server_brands(&mut self) -> Option<&mut Vec<Tag>> {
+        Some(self.tag.compound()?.get_mut("ServerBrands")?.list()?)
+
+    }
+}
+
+// USE https://github.com/pest-parser/pest/blob/master/derive/src/lib.rs

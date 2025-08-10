@@ -1,0 +1,10 @@
+Level
+    data: Data "Data"
+
+Data
+    allow_commands: u8 "allowCommands"
+    raining: u8 "raining"
+    border_size: f64 "BorderSize"
+    some_attribute: compound "Name"
+
+
